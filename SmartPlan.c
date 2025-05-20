@@ -1,9 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #define MAX_EVENT 1000
 
-typedef struct { //Event structure stored in Events.csv with
+typedef struct { // Event structure stored in Events.csv with
     int prio, id, year, month, day, ToD;
     char desc[300];
 } event;
@@ -11,7 +13,7 @@ typedef struct { //Event structure stored in Events.csv with
 event events[MAX_EVENT];
 int event_count = 0;
 
-void build() { // Calendar display CLI
+void build() { // Calendar display CLI input year to build
     int months, days = 1, year = 2025;
     int has_event = 0;
     for (months = 1; months <= 12; months++) {
@@ -20,7 +22,7 @@ void build() { // Calendar display CLI
             for (days; days <= 29; days++) {
                 has_event = 0;
                 for (int i = 0; i < event_count; i++){
-                      if(events[i].month==months && events[i].day==days ){
+                      if(events[i].year==year && events[i].month==months && events[i].day==days ){
                         has_event = 1;
                       }
                 }
@@ -64,7 +66,6 @@ void read_all() { // Gets all events from the csv file to use them in the progra
         exit(EXIT_FAILURE);
         return;
     }
-
     char row[500];
     fgets(row, sizeof(row), reading); // Skip header
     while (fgets(row, sizeof(row), reading)) {
@@ -97,20 +98,17 @@ void read_all() { // Gets all events from the csv file to use them in the progra
     fclose(reading);
 }
 
-void write_all() { // When, the user is done using the prog, it writes all data from scratch
+void write_all() { // When the user is done using the prog, it writes all data from scratch
     FILE *writing = fopen("Events.csv", "w");
     if (writing == NULL) {
         printf("Failed to open events.csv for writing\n");
     }
-
     // Write header
     fprintf(writing, "prio,id,year,month,day,desc\n");
-
     // Write each event
     for (int i = 0; i < event_count; i++) {
         fprintf(writing, "%d,%d,%d,%d,%d,%d,%s\n", events[i].prio, events[i].id, events[i].year, events[i].month, events[i].day, events[i].ToD, events[i].desc);
     }
-
     fclose(writing);
 }
 
@@ -199,10 +197,59 @@ void create_event(event *e, int id, int prio, int year, int month, int day,
     e->desc[sizeof(e->desc) - 1] = '\0';  // Ensure null termination
 }
 
+void APIPE(){ // fusion between an api and a pipe lol
+    const char *pipe_path = "/tmp/calendar_pipe";
+    char buffer[512];
+    char command[32];
+    int cmd_id, prio, year, month, day, ToD;
+    char desc[300];
+
+    mkfifo(pipe_path, 0666);
+    FILE *pipe = fopen(pipe_path, "r");
+    if (!pipe){
+        perror("ALERT ! Broken pipe...");
+        exit(1);
+    }
+
+    while(1){
+        if (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+            if (sscanf(buffer, "%s %d %d %d %d %d %d %[^\n]",
+                   command, &cmd_id, &prio, &year, &month, &day, &ToD, desc) == 8) {
+            if (strcmp(command, "create") == 0) {
+                event e;
+                create_event(&e, cmd_id, prio, year, month, day, 1,
+                             ToD / 3600, (ToD % 3600) / 60, ToD % 60, desc);
+                events[event_count++] = e;
+                printf("[PIPE] Created event ID %d: %s\n", cmd_id, e.desc);
+            } else if (strcmp(command, "delete") == 0) {
+                delete_event_by_id(cmd_id);
+            } else if (strcmp(command, "update") == 0) {
+                event updated;
+                create_event(&updated, cmd_id, prio, year, month, day, 1,
+                             ToD / 3600, (ToD % 3600) / 60, ToD % 60, desc);
+                update_event_by_id(cmd_id, updated);
+                printf("[PIPE] Updated event ID %d\n", cmd_id);
+            }
+            write_all();
+        }
+    }
+    fclose(pipe);
+    }
+}
+
 int main() {
     read_all();
     build();
-        
+    pid_t pid = fork();
+    if (pid < 0){ // Check forking
+        perror("ERROR : Fork failed...");
+        exit(EXIT_FAILURE);
+    }
+    if (pid == 0) {
+        // Child process: run APIPE
+        APIPE();
+        exit(0); // Make sure the child doesn't fall through
+    }
     int action, id_to_delete, id_to_update, new_id;
 
     printf("Enter 1 to delete, 2 to update, or 3 to add new event: ");
@@ -215,13 +262,20 @@ int main() {
     } else if (action == 2) {
         printf("Enter event ID to update: ");
         scanf("%d", &id_to_update);
+        int prio = 3, year = 2025, month = 11, day = 10;
+        int use_time = 1, hour = 9, minute = 15, second = 0;
+        const char *desc = "Updated Event Description";
+
         event updated_event;
-        create_event(&updated_event, id_to_update);
+        create_event(&updated_event, id_to_update, prio, year, month, day,
+                    use_time, hour, minute, second, desc);
         update_event_by_id(id_to_update, updated_event);
     } else if (action == 3) {
+
         event new_event;
         new_id = event_count + 1;  // For simplicity, set new ID as the count of events + 1
-        create_event(&new_event, new_id);
+        create_event(&new_event, new_id, 5, 2025, 12, 25, 1, 14, 30, 0, "Christmas Lunch");
+
         events[event_count++] = new_event;
     }
 
