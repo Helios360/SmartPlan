@@ -4,7 +4,7 @@
 #define MAX_EVENT 1000
 
 typedef struct { //Event structure stored in Events.csv with
-    int prio, id, year, month, day;
+    int prio, id, year, month, day, ToD;
     char desc[300];
 } event;
 
@@ -13,20 +13,42 @@ int event_count = 0;
 
 void build() { // Calendar display CLI
     int months, days = 1, year = 2025;
+    int has_event = 0;
     for (months = 1; months <= 12; months++) {
         printf("\n|");
         if (months == 2 && (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0))) {
             for (days; days <= 29; days++) {
-                printf("%d|", days);
+                has_event = 0;
+                for (int i = 0; i < event_count; i++){
+                      if(events[i].month==months && events[i].day==days ){
+                        has_event = 1;
+                      }
+                }
+                if (has_event) {
+                    printf("%2dE|",days);
+                } else {
+                    printf("%2d |",days);
+                }
                 if (days % 8 == 0 && days != 0) {
                     printf("\n");
                 }
             }
         } else {
             for (days; days <= 31; days++) {
-                printf("%d|", days);
+                has_event = 0;
+                for (int i = 0; i < event_count; i++){
+                      if(events[i].month==months && events[i].day==days ){
+                    
+                        has_event = 1;
+                      }
+                }
+                if (has_event) {
+                    printf("%2dE|",days);
+                } else {
+                    printf("%2d |",days);
+                }
                 if (days % 8 == 0 && days != 0) {
-                    printf("\n");
+                    printf("\n|");
                 }
             }
         }
@@ -38,25 +60,38 @@ void build() { // Calendar display CLI
 void read_all() { // Gets all events from the csv file to use them in the program (display, delete, edit, etc...)
     FILE *reading = fopen("Events.csv", "r");
     if (reading == NULL) {
-        printf("Failed to open events.csv\n");
+        printf("WHOOPS - Failed to open Events.csv | File error (absent/uncorrect path)\n");
+        exit(EXIT_FAILURE);
         return;
     }
 
     char row[500];
+    fgets(row, sizeof(row), reading); // Skip header
     while (fgets(row, sizeof(row), reading)) {
+        printf("Event list\n");
         event e;
         char *token = strtok(row, ",");
         if (token != NULL) e.prio = atoi(token);
+        printf("%d,",e.prio);
         token = strtok(NULL, ",");
         if (token != NULL) e.id = atoi(token);
         token = strtok(NULL, ",");
+        printf("%d,",e.id);
         if (token != NULL) e.year = atoi(token);
         token = strtok(NULL, ",");
+        printf("%d,",e.year);
         if (token != NULL) e.month = atoi(token);
         token = strtok(NULL, ",");
+        printf("%d,",e.month);
         if (token != NULL) e.day = atoi(token);
         token = strtok(NULL, ",");
+        printf("%d,",e.day);
+        if (token != NULL) e.ToD = atoi(token);
+        token = strtok(NULL, "\n");
+        printf("%d,",e.ToD);
         if (token != NULL) strcpy(e.desc, token);
+        printf("%s\n",e.desc);
+        
         events[event_count++] = e;
     }
     fclose(reading);
@@ -66,7 +101,6 @@ void write_all() { // When, the user is done using the prog, it writes all data 
     FILE *writing = fopen("Events.csv", "w");
     if (writing == NULL) {
         printf("Failed to open events.csv for writing\n");
-        return;
     }
 
     // Write header
@@ -74,7 +108,7 @@ void write_all() { // When, the user is done using the prog, it writes all data 
 
     // Write each event
     for (int i = 0; i < event_count; i++) {
-        fprintf(writing, "%d,%d,%d,%d,%d,%s\n", events[i].prio, events[i].id, events[i].year, events[i].month, events[i].day, events[i].desc);
+        fprintf(writing, "%d,%d,%d,%d,%d,%d,%s\n", events[i].prio, events[i].id, events[i].year, events[i].month, events[i].day, events[i].ToD, events[i].desc);
     }
 
     fclose(writing);
@@ -107,43 +141,71 @@ void update_event_by_id(int id, event updated_event) {
     printf("Event with ID %d not found.\n", id);
 }
 
-void input(event *e, int id) {
+void create_event(event *e, int id) {
+    char day_info[1];
+    int hour,minute,second,ToD; // ToD == time of the day
     printf("Please enter prio, id, year, month, day, desc\n");
+    printf("Prio : ");
     scanf("%d", &e->prio);
     e->id = id; // Set the id to the given one
+    printf("Year : ");
     scanf("%d", &e->year);
+    printf("Month : ");
     scanf("%d", &e->month);
+    printf("Day : ");
     scanf("%d", &e->day);
-    scanf(" %[^\n]", e->desc);  // Use this format to get a string with spaces
+    getchar();
+    printf("Input day info ?(Y/n)");
+    scanf("%c",&day_info);
+    if (strcmp(day_info,"Y")==0){
+        printf("hour 0-24:");
+        scanf("%d",&hour);
+        printf("minute 0-60:");
+        scanf("%d",&minute);
+        printf("second 0-60:");
+        scanf("%d",&second);
+        ToD = hour*3600 + minute*60 + second;
+        printf("%d\n",ToD);
+        e->ToD = ToD;
+    } else {
+        e->ToD = '\0';
+    }
+    getchar();
+    printf("Desc : ");
+    fgets(e->desc, sizeof(e->desc), stdin);
+    // Remove trailing newline if present
+    size_t len = strlen(e->desc);
+    if (len > 0 && e->desc[len - 1] == '\n') {
+        e->desc[len - 1] = '\0';
+    }
 }
 
 int main() {
-    build();
     read_all();
-
+    build();
+    
     printf("Enter 1 to delete, 2 to update, or 3 to add new event: ");
-    int choice, id_to_delete, id_to_update, new_id;
-    scanf("%d", &choice);
+    int action, id_to_delete, id_to_update, new_id;
+    scanf("%d", &action);
 
-    if (choice == 1) {
+    if (action == 1) {
         printf("Enter event ID to delete: ");
         scanf("%d", &id_to_delete);
         delete_event_by_id(id_to_delete);
-    } else if (choice == 2) {
+    } else if (action == 2) {
         printf("Enter event ID to update: ");
         scanf("%d", &id_to_update);
         event updated_event;
-        input(&updated_event, id_to_update);
+        create_event(&updated_event, id_to_update);
         update_event_by_id(id_to_update, updated_event);
-    } else if (choice == 3) {
+    } else if (action == 3) {
         event new_event;
         new_id = event_count + 1;  // For simplicity, set new ID as the count of events + 1
-        input(&new_event, new_id);
+        create_event(&new_event, new_id);
         events[event_count++] = new_event;
     }
 
-    write_all();  // Write changes back to the file
-
+    write_all();  // Write changes back to the file from 0
     printf("Current event ID at index 1: %d\n", events[1].id);
     return 0;
 }
