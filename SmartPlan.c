@@ -140,7 +140,7 @@ void update_event_by_id(int id, event updated_event) {
     }
     printf("Event with ID %d not found.\n", id);
 }
-
+/* to create events manually
 void create_event(event *e, int id) {
     char day_info[1];
     int hour,minute,second,ToD; // ToD == time of the day
@@ -179,13 +179,33 @@ void create_event(event *e, int id) {
         e->desc[len - 1] = '\0';
     }
 }
+*/
+void create_event(event *e, int id, int prio, int year, int month, int day,
+                  int use_time, int hour, int minute, int second,
+                  const char *desc) {
+    e->prio = prio;
+    e->id = id;
+    e->year = year;
+    e->month = month;
+    e->day = day;
+
+    if (use_time) {
+        e->ToD = hour * 3600 + minute * 60 + second;
+    } else {
+        e->ToD = 0;
+    }
+
+    strncpy(e->desc, desc, sizeof(e->desc) - 1);
+    e->desc[sizeof(e->desc) - 1] = '\0';  // Ensure null termination
+}
 
 int main() {
     read_all();
     build();
-    
-    printf("Enter 1 to delete, 2 to update, or 3 to add new event: ");
+        
     int action, id_to_delete, id_to_update, new_id;
+
+    printf("Enter 1 to delete, 2 to update, or 3 to add new event: ");
     scanf("%d", &action);
 
     if (action == 1) {
