@@ -255,7 +255,7 @@ void create_event(event *e, int id) {
 }
 */
 void create_event(event *e, int id, int prio, int year, int month, int day,
-int use_time, int hour, int minute, int second, const char *desc) {
+    int hour, int minute, int second, const char *desc) {
 
     e->prio = prio;
     e->id = id;
@@ -270,8 +270,8 @@ int use_time, int hour, int minute, int second, const char *desc) {
     e->desc[sizeof(e->desc) - 1] = '\0';  // Ensure null termination
 }
 
-void APIPE(){ // fusion between an api and a pipe lol
-    const char *pipe_path = "/tmp/calendar_pipe";
+void APIPE(){ // fusion between an api and a pipe
+    const char *pipe_path = "/tmp/calendar_socket";
     char buffer[512];
     char command[32];
     int cmd_id, prio, year, month, day, hour, minute, second;
@@ -291,14 +291,14 @@ void APIPE(){ // fusion between an api and a pipe lol
                 &hour, &minute, &second, desc) == 8) {
             if (strcmp(command, "create") == 0) {
                 event e;
-                create_event(&e, cmd_id, prio, year, month, day, 1, hour, minute, second, desc);
+                create_event(&e, cmd_id, prio, year, month, day, hour, minute, second, desc);
                 events[event_count++] = e;
                 printf("[PIPE] Created event ID %d: %s\n", cmd_id, e.desc);
             } else if (strcmp(command, "delete") == 0) {
                 delete_event_by_id(cmd_id);
             } else if (strcmp(command, "update") == 0) {
                 event updated;
-                create_event(&updated, cmd_id, prio, year, month, day, 1, hour, minute, second, desc);
+                create_event(&updated, cmd_id, prio, year, month, day, hour, minute, second, desc);
                 update_event_by_id(cmd_id, updated);
                 printf("[PIPE] Updated event ID %d\n", cmd_id);
             }
@@ -316,7 +316,6 @@ void command_loop() { // Cli
     while (1) {
         printf(GREEN"calendar>>"RESET);
         if (fgets(input, sizeof(input), stdin) == NULL) break;
-
         input[strcspn(input, "\n")] = 0; // Remove trailing newline
         if (strcmp(input, "exit") == 0) { // Parse command
             break;
@@ -357,7 +356,7 @@ void command_loop() { // Cli
             printf("Enter new description :\n");
             scanf("%s",&new_desc);
             event updated;
-            create_event(&updated, id, 3, 2025, 11, 10, 1, 9, 15, 0, new_desc);
+            create_event(&updated, id, 3, 2025, 11, 10, 9, 15, 0, new_desc);
             update_event_by_id(id, updated);
         } else if (strcmp(input, "create") == 0) {
             event new_event;
@@ -414,11 +413,23 @@ void command_loop() { // Cli
     printf("Exiting calendar.\n");
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     read_all();
     time_t now = time(NULL);
     struct tm *time_info = localtime(&now);
     int year = time_info->tm_year + 1900;
+    if (argv[1]!=NULL && strcmp(argv[1],"-api")==0){
+        printf("The program is running in api mode (headless) no CLI available...");
+        APIPE();
+    } else if (argv[1]!=NULL && strcmp(argv[1],"-help")==0) {
+        printf("SmartPlan is a Calender powered by super algos and dreams ...\n");
+        printf("    -api -------------- Headless, API\n");
+        printf("    empty ------------- CLI prompt\n");
+    } else {
+        build_year(year);
+        command_loop();
+    }
+    /*
     build_year(year);
     pid_t pid = fork();
     if (pid < 0){ // Check forking
@@ -430,7 +441,6 @@ int main() {
         APIPE();
         exit(0); // Make sure the child doesn't fall through
     }
-    /*
     int action, id_to_delete, id_to_update, new_id;
 
     printf("Enter 1 to delete, 2 to update, or 3 to add new event: ");
@@ -463,6 +473,5 @@ int main() {
     write_all();  // Write changes back to the file from 0
     printf("Current event ID at index 1: %d\n", events[1].id);
     */
-    command_loop();
     return 0;
 }
