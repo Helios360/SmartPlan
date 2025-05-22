@@ -22,59 +22,6 @@ int event_count = 0;
 #define CYAN    "\x1b[36m"
 #define RESET   "\x1b[0m"
 #define BLINK   "\x1b[5m"
-/*
-void build(int year) { // Calendar display CLI input year to build
-    int months, days = 1,pair = 31;
-    int has_event = 0;
-    printf(RED"\n ------- YEAR : %d ------- \n"RESET,year);
-    for (months = 1; months <= 12; months++) {
-        printf(MAGENTA"\n -------- MONTH : %d -------- \n"RESET,months);
-        if (months == 2 && (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0))) {
-            printf(YELLOW"|MON|TUE|WED|THU|FRI|SAT|SUN|"CYAN"\n|");
-            for (days; days <= 29; days++) {
-                has_event = 0;
-                for (int i = 0; i < event_count; i++){
-                    if(events[i].year==year && events[i].month==months && events[i].day==days ){
-                        has_event = 1;
-                    }
-                }
-                if (has_event) {
-                    printf(CYAN"%2dE|"RESET,days);
-                } else {
-                    printf(CYAN"%2d |"RESET,days);
-                }
-                if (days % 7 == 0 && days != 0) {
-                    printf(CYAN"\n|"RESET);
-                }
-            }
-        } else {
-            if (months!=2 && months%2==0){
-                pair=30;
-            } else if (months == 2){ 
-                pair = 28;
-            } else {pair = 31;}
-            printf(YELLOW"|MON|TUE|WED|THU|FRI|SAT|SUN|"CYAN"\n|");
-            for (days; days <= pair; days++) {
-                has_event = 0;
-                for (int i = 0; i < event_count; i++){
-                    if(events[i].month==months && events[i].day==days ){
-                        has_event = 1;
-                    }
-                }
-                if (has_event) {
-                    printf(RED"%2dX"CYAN"|"RESET,days);
-                } else {
-                    printf(CYAN"%2d |",days);
-                }
-                if (days % 7 == 0 && days != 0) {
-                    printf("\n|");
-                }
-            }
-        }
-        days = 1;
-        printf("\n"RESET);
-    }
-}*/
 
 void build_day_events(int year, int month, int day){
     int i;
@@ -214,46 +161,7 @@ void update_event_by_id(int id, event updated_event) {
     }
     printf("Event with ID %d not found.\n", id);
 }
-/* to create events manually 'obsellete
-void create_event(event *e, int id) {
-    char day_info[1];
-    int hour,minute,second,ToD; // ToD == time of the day
-    printf("Please enter prio, id, year, month, day, desc\n");
-    printf("Prio : ");
-    scanf("%d", &e->prio);
-    e->id = id; // Set the id to the given one
-    printf("Year : ");
-    scanf("%d", &e->year);
-    printf("Month : ");
-    scanf("%d", &e->month);
-    printf("Day : ");
-    scanf("%d", &e->day);
-    getchar();
-    printf("Input day info ?(Y/n)");
-    scanf("%c",&day_info);
-    if (strcmp(day_info,"Y")==0){
-        printf("hour 0-24:");
-        scanf("%d",&hour);
-        printf("minute 0-60:");
-        scanf("%d",&minute);
-        printf("second 0-60:");
-        scanf("%d",&second);
-        ToD = hour*3600 + minute*60 + second;
-        printf("%d\n",ToD);
-        e->ToD = ToD;
-    } else {
-        e->ToD = '\0';
-    }
-    getchar();
-    printf("Desc : ");
-    fgets(e->desc, sizeof(e->desc), stdin);
-    // Remove trailing newline if present
-    size_t len = strlen(e->desc);
-    if (len > 0 && e->desc[len - 1] == '\n') {
-        e->desc[len - 1] = '\0';
-    }
-}
-*/
+
 void create_event(event *e, int id, int prio, int year, int month, int day,
     int hour, int minute, int second, const char *desc) {
 
@@ -429,49 +337,5 @@ int main(int argc, char *argv[]) {
         build_year(year);
         command_loop();
     }
-    /*
-    build_year(year);
-    pid_t pid = fork();
-    if (pid < 0){ // Check forking
-        perror("ERROR : Fork failed...");
-        exit(EXIT_FAILURE);
-    }
-    if (pid == 0) {
-        // Child process: run APIPE
-        APIPE();
-        exit(0); // Make sure the child doesn't fall through
-    }
-    int action, id_to_delete, id_to_update, new_id;
-
-    printf("Enter 1 to delete, 2 to update, or 3 to add new event: ");
-    scanf("%d", &action);
-
-    if (action == 1) {
-        printf("Enter event ID to delete: ");
-        scanf("%d", &id_to_delete);
-        delete_event_by_id(id_to_delete);
-    } else if (action == 2) {
-        printf("Enter event ID to update: ");
-        scanf("%d", &id_to_update);
-        int prio = 3, year = 2025, month = 11, day = 10;
-        int use_time = 1, hour = 9, minute = 15, second = 0;
-        const char *desc = "Updated Event Description";
-
-        event updated_event;
-        create_event(&updated_event, id_to_update, prio, year, month, day,
-                    use_time, hour, minute, second, desc);
-        update_event_by_id(id_to_update, updated_event);
-    } else if (action == 3) {
-
-        event new_event;
-        new_id = event_count + 1;  // For simplicity, set new ID as the count of events + 1
-        create_event(&new_event, new_id, 5, 2025, 12, 25, 1, 14, 30, 0, "Christmas Lunch");
-
-        events[event_count++] = new_event;
-    }
-
-    write_all();  // Write changes back to the file from 0
-    printf("Current event ID at index 1: %d\n", events[1].id);
-    */
     return 0;
 }
