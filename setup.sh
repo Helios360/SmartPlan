@@ -4,4 +4,6 @@ gcc `pkg-config gtk+-3.0 --cflags` SmartPlan.c -o SmartPlan `pkg-config gtk+-3.0
 
 mv Smartplan /usr/local/bin/
 
-echo "Setup is done, you can type Smartplan -help for info"
+nohup ollama serve > ollama.log 2>&1 &
+
+echo "Setup is done, you can type Smartplan -help to begin"

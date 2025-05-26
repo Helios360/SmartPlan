@@ -4,10 +4,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <time.h>
+#include <curl/curl.h>
+//#include <cjson/cJSON.h>
 #define MAX_EVENT 1000
 
 typedef struct { // Event structure stored in Events.csv with
-    int prio, id, year, month, day, hours, minutes, seconds;
+    int prio, id, year, month, day, hours, minutes, seconds, duration;
+    char peoples[300];
     char desc[300];
 } event;
 
@@ -31,7 +34,7 @@ void build_day_events(int year, int month, int day){
                        events[i].id,
                        events[i].year, events[i].month, events[i].day,
                        events[i].hours, events[i].minutes, events[i].seconds,
-                       events[i].prio, events[i].desc);
+                       events[i].prio, events[i].duration, events[i].peoples, events[i].desc);
         }
     }
 }
@@ -109,6 +112,10 @@ void read_all() { // Gets all events from the csv file to use them in the progra
         if (token != NULL) e.minutes = atoi(token);
         token = strtok(NULL, ",");
         if (token != NULL) e.seconds = atoi(token);
+        token = strtok(NULL, ",");
+        if (token != NULL) e.duration = atoi(token);
+        token = strtok(NULL, ",");
+        if (token != NULL) strcpy(e.peoples, token);
         token = strtok(NULL, "\n");
         if (token != NULL) strcpy(e.desc, token);
         
@@ -126,11 +133,11 @@ void write_all() { // When the user is done using the prog, it writes all data f
     fprintf(writing, "prio,id,year,month,day,hours,minutes,seconds,desc\n");
     // Write each event
     for (int i = 0; i < event_count; i++) {
-        fprintf(writing, "%d,%d,%d,%d,%d,%d,%d,%d,%s\n",
+        fprintf(writing, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%s\n",
             events[i].prio, events[i].id,
             events[i].year, events[i].month, events[i].day,
             events[i].hours, events[i].minutes, events[i].seconds,
-            events[i].desc);
+            events[i].duration, events[i].peoples, events[i].desc);
     }
     fclose(writing);
 }
@@ -163,7 +170,7 @@ void update_event_by_id(int id, event updated_event) {
 }
 
 void create_event(event *e, int id, int prio, int year, int month, int day,
-    int hour, int minute, int second, const char *desc) {
+    int hour, int minute, int second, int duration, const char *peoples, const char *desc) {
 
     e->prio = prio;
     e->id = id;
@@ -173,16 +180,39 @@ void create_event(event *e, int id, int prio, int year, int month, int day,
     e->hours = hour;
     e->minutes = minute;
     e->seconds = second;
+    e->duration = duration;
 
+    strncpy(e->peoples, peoples, sizeof(e->peoples) - 1);
+    e->peoples[sizeof(e->peoples) - 1] = '\0';
     strncpy(e->desc, desc, sizeof(e->desc) - 1);
     e->desc[sizeof(e->desc) - 1] = '\0';  // Ensure null termination
 }
 
-void APIPE(){ // fusion between an api and a pipe
+void optimize() {
+    /* the part here is dedicated to be an implementation of AI
+    to dissect the description of the event into multiple arguments
+    like place (use OSM lib), peoples use(SAI DB), duration and priority 
+    is already argumented I'll use libcurl to interface with the ollama 
+    api for local AI (I might put this in another function tho :3)
+    Exemple : Desc = "Visiting grandma(people) at her house(place)" */
+    
+    for (int i = 0; i < event_count; i++) {
+        for (int y = 0; y < event_count; y++){
+            if (events[i].year==events[y].year && i!=y){
+                if (events[i].month==events[y].month && events[i].day==events[y].day) {
+                    
+                }
+            }
+        }
+    }
+}
+
+void APIPE(){ // Will be useful if SmartPlan is integrated into a system
     const char *pipe_path = "/tmp/calendar_socket";
     char buffer[512];
     char command[32];
-    int cmd_id, prio, year, month, day, hour, minute, second;
+    int cmd_id, prio, year, month, day, hour, minute, second, duration;
+    char peoples[300];
     char desc[300];
 
     mkfifo(pipe_path, 0666);
@@ -194,19 +224,19 @@ void APIPE(){ // fusion between an api and a pipe
 
     while(1){
         if (fgets(buffer, sizeof(buffer), pipe) != NULL) {
-            if (sscanf(buffer, "%s %d %d %d %d %d %d %d %d %[^\n]",
+            if (sscanf(buffer, "%s %d %d %d %d %d %d %d %d %[^|]|%[^\n]",
                 command, &cmd_id, &prio, &year, &month, &day,
-                &hour, &minute, &second, desc) == 8) {
+                &hour, &minute, &second, &duration, peoples, desc) == 12) {
             if (strcmp(command, "create") == 0) {
                 event e;
-                create_event(&e, cmd_id, prio, year, month, day, hour, minute, second, desc);
+                create_event(&e, cmd_id, prio, year, month, day, hour, minute, second, duration, peoples, desc);
                 events[event_count++] = e;
                 printf("[PIPE] Created event ID %d: %s\n", cmd_id, e.desc);
             } else if (strcmp(command, "delete") == 0) {
                 delete_event_by_id(cmd_id);
             } else if (strcmp(command, "update") == 0) {
                 event updated;
-                create_event(&updated, cmd_id, prio, year, month, day, hour, minute, second, desc);
+                create_event(&updated, cmd_id, prio, year, month, day, hour, minute, second, duration, peoples, desc);
                 update_event_by_id(cmd_id, updated);
                 printf("[PIPE] Updated event ID %d\n", cmd_id);
             }
@@ -215,6 +245,62 @@ void APIPE(){ // fusion between an api and a pipe
     }
     fclose(pipe);
     }
+}
+
+event prompt_user_for_event_data(int id) {
+    event e;
+    char peoples[300];
+    char desc[300];
+    char day_info;
+    int hour = 0, minute = 0, second = 0, duration = 0;
+
+    printf("Please enter prio, year, month, day:\n");
+    printf("Prio: ");
+    scanf("%d", &e.prio);
+    e.id = id;
+
+    printf("Year: ");
+    scanf("%d", &e.year);
+    printf("Month: ");
+    scanf("%d", &e.month);
+    printf("Day: ");
+    scanf("%d", &e.day);
+
+    getchar(); // Clean newline
+    printf("Input time of day? (y/n): ");
+    scanf("%c", &day_info);
+
+    if (day_info == 'Y' || day_info == 'y') {
+        printf("Hour (0-23): ");
+        scanf("%d", &hour);
+        printf("Minute (0-59): ");
+        scanf("%d", &minute);
+        printf("Second (0-59): ");
+        scanf("%d", &second);
+    }
+
+    e.hours = hour;
+    e.minutes = minute;
+    e.seconds = second;
+
+    getchar(); // clear
+    printf("Duration (in minutes): ");
+    scanf("%d", &duration);
+    e.duration = duration;
+
+    getchar(); // clear
+    printf("People involved (separate with semicolons): ");
+    fgets(peoples, sizeof(peoples), stdin);
+    peoples[strcspn(peoples, "\n")] = 0;
+
+    printf("Description: ");
+    fgets(desc, sizeof(desc), stdin);
+    desc[strcspn(desc, "\n")] = 0;
+
+    create_event(&e, id, e.prio, e.year, e.month, e.day,
+                 e.hours, e.minutes, e.seconds, duration, peoples, desc);
+
+    return e;
 }
 
 void command_loop() { // Cli
@@ -234,14 +320,16 @@ void command_loop() { // Cli
             printf("    delete <id>---------Delete event by ID\n");
             printf("    update <id>---------Update event by ID\n");
             printf("    build <y> <m> <d>---Print year|month|day's events\n");
+            printf("    optimize------------Optimize events placements with AI\n");
             printf("    exit----------------Quit the program\n"RESET);
         } else if (strcmp(input, "list") == 0) {
             for (int i = 0; i < event_count; i++) {
-                printf("%d,%d,%d,%d,%d,%d,%d,%d,%s\n",
-                    events[i].prio, events[i].id,
-                    events[i].year, events[i].month, events[i].day,
-                    events[i].hours, events[i].minutes, events[i].seconds,
-                    events[i].desc);
+                printf(">%d | %04d-%02d-%02d/%02d:%02d:%02ds/t=%d | Prio %d |\nwith %s | %s\n",
+                       events[i].id,
+                       events[i].year, events[i].month, events[i].day,
+                       events[i].hours, events[i].minutes, events[i].seconds,
+                       events[i].duration, events[i].prio, events[i].peoples, events[i].desc);
+                printf("-------------------------------------------------------\n");
             }
         } else if (strncmp(input, "build ", 6) == 0) {
             int year, month, day;
@@ -260,58 +348,15 @@ void command_loop() { // Cli
             delete_event_by_id(id);
         } else if (strncmp(input, "update ", 7) == 0) {
             int id = atoi(input + 7);
-            char new_desc[200];
-            printf("Enter new description :\n");
-            scanf("%s",&new_desc);
-            event updated;
-            create_event(&updated, id, 3, 2025, 11, 10, 9, 15, 0, new_desc);
-            update_event_by_id(id, updated);
+            event updated_event = prompt_user_for_event_data(id);
+            update_event_by_id(id, updated_event);
         } else if (strcmp(input, "create") == 0) {
-            event new_event;
             int new_id = event_count + 1;
-            char day_info;
-            int hour = 0, minute = 0, second = 0;
-
-            printf("Please enter prio, year, month, day:\n");
-            printf("Prio: ");
-            scanf("%d", &new_event.prio);
-
-            new_event.id = new_id;
-
-            printf("Year: ");
-            scanf("%d", &new_event.year);
-            printf("Month: ");
-            scanf("%d", &new_event.month);
-            printf("Day: ");
-            scanf("%d", &new_event.day);
-
-            getchar(); // Clear newline after last input
-            printf("Input time of day? (Y/n): ");
-            scanf("%c", &day_info);
-
-            if (day_info == 'Y' || day_info == 'y') {
-                printf("Hour (0-23): ");
-                scanf("%d", &hour);
-                printf("Minute (0-59): ");
-                scanf("%d", &minute);
-                printf("Second (0-59): ");
-                scanf("%d", &second);
-            }
-
-            new_event.hours = hour;
-            new_event.minutes = minute;
-            new_event.seconds = second;
-
-            getchar(); // Consume leftover newline
-            printf("Description: ");
-            fgets(new_event.desc, sizeof(new_event.desc), stdin);
-            size_t len = strlen(new_event.desc);
-            if (len > 0 && new_event.desc[len - 1] == '\n') {
-                new_event.desc[len - 1] = '\0';
-            }
-
+            event new_event = prompt_user_for_event_data(new_id);
             events[event_count++] = new_event;
             printf("Created event with ID %d\n", new_id);
+        } else if (strcmp(input, "optimize") == 0) {
+            
         } else {
             printf("Unknown command. Type 'help' to list commands.\n");
         }
@@ -332,7 +377,7 @@ int main(int argc, char *argv[]) {
     } else if (argv[1]!=NULL && strcmp(argv[1],"-help")==0) {
         printf("SmartPlan is a Calender powered by super algos and dreams ...\n");
         printf("    -api -------------- Headless, API\n");
-        printf("    empty ------------- CLI prompt\n");
+        printf("    none -------------- CLI prompt\n");
     } else {
         build_year(year);
         command_loop();
