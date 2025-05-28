@@ -130,7 +130,7 @@ void write_all() { // When the user is done using the prog, it writes all data f
         printf("Failed to open events.csv for writing\n");
     }
     // Write header
-    fprintf(writing, "prio,id,year,month,day,hours,minutes,seconds,desc\n");
+    fprintf(writing, "prio,id,year,month,day,hours,minutes,seconds,duration,peoples,desc\n");
     // Write each event
     for (int i = 0; i < event_count; i++) {
         fprintf(writing, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%s\n",
@@ -207,6 +207,25 @@ void optimize() {
     }
 }
 
+int secure() { // Will check for any conflict between database and commands
+    int error = 0; 
+    for (int i = 0; i < event_count; i++) {
+        for (int y = 0; y < event_count; y++){
+            if (events[i].year==events[y].year && i!=y){
+                if (events[i].month==events[y].month && events[i].day==events[y].day) {
+                    int Itime = events[i].hours*3600+events[i].minutes*60+events[i].seconds;
+                    int Ytime = events[y].hours*3600+events[y].minutes*60+events[y].seconds;
+                    if(Itime + events[i].duration > Ytime){
+                        error = 1;
+                        printf("ALERT - event with ID %d is being stepped on by ID %d \nEither delete or update one of them to save... \n",events[i].id,events[y].id);
+                    }
+                }
+            }
+        }
+    }
+    if(error == 0){ return 0; } else { return 1; }
+}
+
 void APIPE(){ // Will be useful if SmartPlan is integrated into a system
     const char *pipe_path = "/tmp/calendar_socket";
     char buffer[512];
@@ -253,6 +272,7 @@ event prompt_user_for_event_data(int id) {
     char desc[300];
     char day_info;
     int hour = 0, minute = 0, second = 0, duration = 0;
+    
 
     printf("Please enter prio, year, month, day:\n");
     printf("Prio: ");
@@ -296,7 +316,6 @@ event prompt_user_for_event_data(int id) {
     printf("Description: ");
     fgets(desc, sizeof(desc), stdin);
     desc[strcspn(desc, "\n")] = 0;
-
     create_event(&e, id, e.prio, e.year, e.month, e.day,
                  e.hours, e.minutes, e.seconds, duration, peoples, desc);
 
@@ -315,13 +334,13 @@ void command_loop() { // Cli
             break;
         } else if (strcmp(input, "help") == 0) {
             printf(YELLOW"Commands:\n");
-            printf("    list----------------List all events\n");
-            printf("    create--------------Create a new event\n");
-            printf("    delete <id>---------Delete event by ID\n");
-            printf("    update <id>---------Update event by ID\n");
-            printf("    build <y> <m> <d>---Print year|month|day's events\n");
-            printf("    optimize------------Optimize events placements with AI\n");
-            printf("    exit----------------Quit the program\n"RESET);
+            printf("\tlist----------------List all events\n");
+            printf("\tcreate--------------Create a new event\n");
+            printf("\tdelete <id>---------Delete event by ID\n");
+            printf("\tupdate <id>---------Update event by ID\n");
+            printf("\tbuild <y> <m> <d>---Print year|month|day's events\n");
+            printf("\toptimize------------Optimize events placements with AI\n");
+            printf("\texit----------------Quit the program\n"RESET);
         } else if (strcmp(input, "list") == 0) {
             for (int i = 0; i < event_count; i++) {
                 printf(">%d | %04d-%02d-%02d/%02d:%02d:%02ds/t=%d | Prio %d |\nwith %s | %s\n",
@@ -351,6 +370,9 @@ void command_loop() { // Cli
             event updated_event = prompt_user_for_event_data(id);
             update_event_by_id(id, updated_event);
         } else if (strcmp(input, "create") == 0) {
+            if (secure() == 1){
+                continue;
+            }
             int new_id = event_count + 1;
             event new_event = prompt_user_for_event_data(new_id);
             events[event_count++] = new_event;
@@ -376,8 +398,8 @@ int main(int argc, char *argv[]) {
         APIPE();
     } else if (argv[1]!=NULL && strcmp(argv[1],"-help")==0) {
         printf("SmartPlan is a Calender powered by super algos and dreams ...\n");
-        printf("    -api -------------- Headless, API\n");
-        printf("    none -------------- CLI prompt\n");
+        printf("\t-api -------------- Headless, API\n");
+        printf("\tnone -------------- CLI prompt\n");
     } else {
         build_year(year);
         command_loop();
