@@ -9,7 +9,8 @@
 #define MAX_EVENT 1000
 
 typedef struct { // Event structure stored in Events.csv with
-    int prio, id, year, month, day, hours, minutes, seconds, duration;
+    int prio, year, month, day, hours, minutes, seconds, duration;
+    unsigned long long id;
     char peoples[300];
     char desc[300];
 } event;
@@ -30,7 +31,7 @@ void build_day_events(int year, int month, int day){
     int i;
     for (i = 0; i < event_count; i++) {
         if (events[i].year == year && events[i].month == month && events[i].day == day) {
-            printf("ID %d | %04d-%02d-%02d/%02d:%02d:%02ds | Prio %d | %s\n",
+            printf(">%llu | %04d-%02d-%02d/%02d:%02d:%02ds/t=%d | Prio %d |\nwith %s | %s\n",
                        events[i].id,
                        events[i].year, events[i].month, events[i].day,
                        events[i].hours, events[i].minutes, events[i].seconds,
@@ -99,7 +100,7 @@ void read_all() { // Gets all events from the csv file to use them in the progra
         char *token = strtok(row, ",");
         if (token != NULL) e.prio = atoi(token);
         token = strtok(NULL, ",");
-        if (token != NULL) e.id = atoi(token);
+        if (token != NULL) e.id = strtoull(token, NULL, 10);
         token = strtok(NULL, ",");
         if (token != NULL) e.year = atoi(token);
         token = strtok(NULL, ",");
@@ -133,7 +134,7 @@ void write_all() { // When the user is done using the prog, it writes all data f
     fprintf(writing, "prio,id,year,month,day,hours,minutes,seconds,duration,peoples,desc\n");
     // Write each event
     for (int i = 0; i < event_count; i++) {
-        fprintf(writing, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%s\n",
+        fprintf(writing, "%d,%llu,%d,%d,%d,%d,%d,%d,%d,%s,%s\n",
             events[i].prio, events[i].id,
             events[i].year, events[i].month, events[i].day,
             events[i].hours, events[i].minutes, events[i].seconds,
@@ -168,12 +169,20 @@ void update_event_by_id(int id, event updated_event) {
     }
     printf("Event with ID %d not found.\n", id);
 }
+unsigned long long generate_event_id(int year, int month, int day, int hour, int minute, int second) {
+    return (unsigned long long)year   * 10000000000ULL +
+           (unsigned long long)month  * 100000000ULL +
+           (unsigned long long)day    * 1000000ULL +
+           (unsigned long long)hour   * 10000ULL +
+           (unsigned long long)minute * 100ULL +
+           (unsigned long long)second;
+}
 
-void create_event(event *e, int id, int prio, int year, int month, int day,
+void create_event(event *e, int prio, int year, int month, int day,
     int hour, int minute, int second, int duration, const char *peoples, const char *desc) {
 
     e->prio = prio;
-    e->id = id;
+    e->id = generate_event_id(year, month, day, hour, minute, second);
     e->year = year;
     e->month = month;
     e->day = day;
@@ -188,43 +197,46 @@ void create_event(event *e, int id, int prio, int year, int month, int day,
     e->desc[sizeof(e->desc) - 1] = '\0';  // Ensure null termination
 }
 
-void optimize() {
-    /* the part here is dedicated to be an implementation of AI
-    to dissect the description of the event into multiple arguments
-    like place (use OSM lib), peoples use(SAI DB), duration and priority 
-    is already argumented I'll use libcurl to interface with the ollama 
-    api for local AI (I might put this in another function tho :3)
+void optimize() { 
+    /* None of the logic is being done here, it's all in the AI 
+    script after passing the whole calendar (reading result) the part here 
+    is dedicated to be an implementation of AI to dissect the description
+    of the event into multiple arguments like place (use OSM lib), 
+    peoples use(SAI DB), duration and priority is already argumented 
+    I'll use libcurl to interface with the ollama api for local AI 
+    (I might put this in another function tho :3)
     Exemple : Desc = "Visiting grandma(people) at her house(place)" */
-    
-    for (int i = 0; i < event_count; i++) {
-        for (int y = 0; y < event_count; y++){
-            if (events[i].year==events[y].year && i!=y){
-                if (events[i].month==events[y].month && events[i].day==events[y].day) {
-                    
-                }
-            }
-        }
-    }
 }
+/* Not really needed but could still be a feature for strict mode maybe idk
+int secure() {
+    int error = 0;
+    for (int i = 0; i < event_count; i++) {
+        for (int j = i + 1; j < event_count; j++) {
+            if (events[i].year == events[j].year &&
+                events[i].month == events[j].month &&
+                events[i].day == events[j].day) {
 
-int secure() { // Will check for any conflict between database and commands
-    int error = 0; 
-    for (int i = 0; i < event_count; i++) {
-        for (int y = 0; y < event_count; y++){
-            if (events[i].year==events[y].year && i!=y){
-                if (events[i].month==events[y].month && events[i].day==events[y].day) {
-                    int Itime = events[i].hours*3600+events[i].minutes*60+events[i].seconds;
-                    int Ytime = events[y].hours*3600+events[y].minutes*60+events[y].seconds;
-                    if(Itime + events[i].duration > Ytime){
-                        error = 1;
-                        printf("ALERT - event with ID %d is being stepped on by ID %d \nEither delete or update one of them to save... \n",events[i].id,events[y].id);
-                    }
+                int i_start = events[i].hours * 3600 + events[i].minutes * 60 + events[i].seconds;
+                int i_end = i_start + events[i].duration * 60;
+
+                int j_start = events[j].hours * 3600 + events[j].minutes * 60 + events[j].seconds;
+                int j_end = j_start + events[j].duration * 60;
+
+                if (i_start < j_end && j_start < i_end) {
+                    printf(RED"Conflict detected between event ID %llu and ID %llu\n"RESET,
+                           events[i].id, events[j].id);
+                    error = 1;
                 }
             }
         }
     }
-    if(error == 0){ return 0; } else { return 1; }
+
+    if (error) {
+        printf(YELLOW"Resolve conflicts before proceeding.\n"RESET);
+    }
+    return error;
 }
+*/
 
 void APIPE(){ // Will be useful if SmartPlan is integrated into a system
     const char *pipe_path = "/tmp/calendar_socket";
@@ -243,30 +255,36 @@ void APIPE(){ // Will be useful if SmartPlan is integrated into a system
 
     while(1){
         if (fgets(buffer, sizeof(buffer), pipe) != NULL) {
-            if (sscanf(buffer, "%s %d %d %d %d %d %d %d %d %[^|]|%[^\n]",
+            int matched = sscanf(buffer, "%31s %d %d %d %d %d %d %d %d %d %299[^|]|%299[^\n]",
                 command, &cmd_id, &prio, &year, &month, &day,
-                &hour, &minute, &second, &duration, peoples, desc) == 12) {
-            if (strcmp(command, "create") == 0) {
-                event e;
-                create_event(&e, cmd_id, prio, year, month, day, hour, minute, second, duration, peoples, desc);
-                events[event_count++] = e;
-                printf("[PIPE] Created event ID %d: %s\n", cmd_id, e.desc);
-            } else if (strcmp(command, "delete") == 0) {
-                delete_event_by_id(cmd_id);
-            } else if (strcmp(command, "update") == 0) {
-                event updated;
-                create_event(&updated, cmd_id, prio, year, month, day, hour, minute, second, duration, peoples, desc);
-                update_event_by_id(cmd_id, updated);
-                printf("[PIPE] Updated event ID %d\n", cmd_id);
+                &hour, &minute, &second, &duration, peoples, desc);
+
+            if (matched == 12) {
+                if (strcmp(command, "create") == 0) {
+                    printf("Create command found");
+                    event e;
+                    create_event(&e, prio, year, month, day, hour, minute, second, duration, peoples, desc);
+                    events[event_count++] = e;
+                    printf("[PIPE] Created event ID %d: %s\n", cmd_id, e.desc);
+                } else if (strcmp(command, "delete") == 0) {
+                    delete_event_by_id(cmd_id);
+                } else if (strcmp(command, "update") == 0) {
+                    event updated;
+                    create_event(&updated, prio, year, month, day, hour, minute, second, duration, peoples, desc);
+                    update_event_by_id(cmd_id, updated);
+                    printf("[PIPE] Updated event ID %d\n", cmd_id);
+                }
+            } else {
+                fprintf(stderr, RED"[PIPE] Format invalide ou incomplet : '%s'\n"RESET, buffer);
+                continue;
             }
             write_all();
         }
     }
     fclose(pipe);
-    }
 }
 
-event prompt_user_for_event_data(int id) {
+event prompt_user_for_event_data() {
     event e;
     char peoples[300];
     char desc[300];
@@ -277,7 +295,6 @@ event prompt_user_for_event_data(int id) {
     printf("Please enter prio, year, month, day:\n");
     printf("Prio: ");
     scanf("%d", &e.prio);
-    e.id = id;
 
     printf("Year: ");
     scanf("%d", &e.year);
@@ -316,9 +333,8 @@ event prompt_user_for_event_data(int id) {
     printf("Description: ");
     fgets(desc, sizeof(desc), stdin);
     desc[strcspn(desc, "\n")] = 0;
-    create_event(&e, id, e.prio, e.year, e.month, e.day,
+    create_event(&e, e.prio, e.year, e.month, e.day,
                  e.hours, e.minutes, e.seconds, duration, peoples, desc);
-
     return e;
 }
 
@@ -343,7 +359,7 @@ void command_loop() { // Cli
             printf("\texit----------------Quit the program\n"RESET);
         } else if (strcmp(input, "list") == 0) {
             for (int i = 0; i < event_count; i++) {
-                printf(">%d | %04d-%02d-%02d/%02d:%02d:%02ds/t=%d | Prio %d |\nwith %s | %s\n",
+                printf(">%llu | %04d-%02d-%02d/%02d:%02d:%02ds/t=%d | Prio %d |\nwith %s | %s\n",
                        events[i].id,
                        events[i].year, events[i].month, events[i].day,
                        events[i].hours, events[i].minutes, events[i].seconds,
@@ -367,16 +383,15 @@ void command_loop() { // Cli
             delete_event_by_id(id);
         } else if (strncmp(input, "update ", 7) == 0) {
             int id = atoi(input + 7);
-            event updated_event = prompt_user_for_event_data(id);
+            event updated_event = prompt_user_for_event_data();
             update_event_by_id(id, updated_event);
         } else if (strcmp(input, "create") == 0) {
+            event new_event = prompt_user_for_event_data();
             if (secure() == 1){
                 continue;
             }
-            int new_id = event_count + 1;
-            event new_event = prompt_user_for_event_data(new_id);
             events[event_count++] = new_event;
-            printf("Created event with ID %d\n", new_id);
+            printf("Created event succesfully\n");
         } else if (strcmp(input, "optimize") == 0) {
             
         } else {
