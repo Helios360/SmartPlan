@@ -206,6 +206,13 @@ void optimize() {
     I'll use libcurl to interface with the ollama api for local AI 
     (I might put this in another function tho :3)
     Exemple : Desc = "Visiting grandma(people) at her house(place)" */
+    
+    // for the next line, the AI can interface directly with the stack not the end file
+    // format the csv file into json
+    // start a loop
+    // send classic prompt followed by the json calendar
+    // execute commands in live
+    // end loop and write changes in event list
 }
 /* Not really needed but could still be a feature for strict mode maybe idk
 int secure() {
