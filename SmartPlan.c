@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <curl/curl.h>
+#include <gtk/gtk.h>
 //#include <cjson/cJSON.h>
 #define MAX_EVENT 1000
 
@@ -197,24 +198,6 @@ void create_event(event *e, int prio, int year, int month, int day,
     e->desc[sizeof(e->desc) - 1] = '\0';  // Ensure null termination
 }
 
-void optimize() { 
-    /* None of the logic is being done here, it's all in the AI 
-    script after passing the whole calendar (reading result) the part here 
-    is dedicated to be an implementation of AI to dissect the description
-    of the event into multiple arguments like place (use OSM lib), 
-    peoples use(SAI DB), duration and priority is already argumented 
-    I'll use libcurl to interface with the ollama api for local AI 
-    (I might put this in another function tho :3)
-    Exemple : Desc = "Visiting grandma(people) at her house(place)" */
-    
-    // for the next line, the AI can interface directly with the stack not the end file
-    // format the csv file into json
-    // start a loop
-    // send classic prompt followed by the json calendar
-    // execute commands in live
-    // end loop and write changes in event list
-}
-/* Not really needed but could still be a feature for strict mode maybe idk
 int secure() {
     int error = 0;
     for (int i = 0; i < event_count; i++) {
@@ -243,15 +226,10 @@ int secure() {
     }
     return error;
 }
-*/
 
-void APIPE(){ // Will be useful if SmartPlan is integrated into a system
+void APIPE() {
     const char *pipe_path = "/tmp/calendar_socket";
     char buffer[512];
-    char command[32];
-    int cmd_id, prio, year, month, day, hour, minute, second, duration;
-    char peoples[300];
-    char desc[300];
 
     mkfifo(pipe_path, 0666);
     FILE *pipe = fopen(pipe_path, "r");
@@ -262,32 +240,74 @@ void APIPE(){ // Will be useful if SmartPlan is integrated into a system
 
     while(1){
         if (fgets(buffer, sizeof(buffer), pipe) != NULL) {
-            int matched = sscanf(buffer, "%31s %d %d %d %d %d %d %d %d %d %299[^|]|%299[^\n]",
-                command, &cmd_id, &prio, &year, &month, &day,
-                &hour, &minute, &second, &duration, peoples, desc);
+            buffer[strcspn(buffer, "\n")] = 0;  // Remove newline
 
-            if (matched == 12) {
-                if (strcmp(command, "create") == 0) {
-                    printf("Create command found");
-                    event e;
-                    create_event(&e, prio, year, month, day, hour, minute, second, duration, peoples, desc);
-                    events[event_count++] = e;
-                    printf("[PIPE] Created event ID %d: %s\n", cmd_id, e.desc);
-                } else if (strcmp(command, "delete") == 0) {
-                    delete_event_by_id(cmd_id);
-                } else if (strcmp(command, "update") == 0) {
-                    event updated;
-                    create_event(&updated, prio, year, month, day, hour, minute, second, duration, peoples, desc);
-                    update_event_by_id(cmd_id, updated);
-                    printf("[PIPE] Updated event ID %d\n", cmd_id);
-                }
-            } else {
-                fprintf(stderr, RED"[PIPE] Format invalide ou incomplet : '%s'\n"RESET, buffer);
-                continue;
+            char *token = strtok(buffer, " ");
+            if (!token) continue;
+
+            char command[32];
+            strncpy(command, token, sizeof(command));
+
+            int prio, year, month, day, hour, minute, second, duration;
+            char peoples[300] = {0};
+            char desc[300] = {0};
+
+            token = strtok(NULL, " "); if (!token) goto format_error;
+            prio = atoi(token);
+
+            token = strtok(NULL, " "); if (!token) goto format_error;
+            year = atoi(token);
+
+            token = strtok(NULL, " "); if (!token) goto format_error;
+            month = atoi(token);
+
+            token = strtok(NULL, " "); if (!token) goto format_error;
+            day = atoi(token);
+
+            token = strtok(NULL, " "); if (!token) goto format_error;
+            hour = atoi(token);
+
+            token = strtok(NULL, " "); if (!token) goto format_error;
+            minute = atoi(token);
+
+            token = strtok(NULL, " "); if (!token) goto format_error;
+            second = atoi(token);
+
+            token = strtok(NULL, " "); if (!token) goto format_error;
+            duration = atoi(token);
+
+            token = strtok(NULL, "|"); if (!token) goto format_error;
+            strncpy(peoples, token, sizeof(peoples));
+
+            token = strtok(NULL, "\n"); if (!token) goto format_error;
+            strncpy(desc, token, sizeof(desc));
+
+            if (strcmp(command, "create") == 0) {
+                printf("Create command found\n");
+                event e;
+                create_event(&e, prio, year, month, day, hour, minute, second, duration, peoples, desc);
+                events[event_count++] = e;
+                printf("[PIPE] Created event ID %d: %s\n", e.id, e.desc);
+            } else if (strcmp(command, "delete") == 0) {
+                int cmd_id = prio; // reuse prio field for ID
+                delete_event_by_id(cmd_id);
+            } else if (strcmp(command, "update") == 0) {
+                int cmd_id = prio; // reuse prio field for ID
+                event updated;
+                create_event(&updated, prio, year, month, day, hour, minute, second, duration, peoples, desc);
+                update_event_by_id(cmd_id, updated);
+                printf("[PIPE] Updated event ID %d\n", cmd_id);
             }
+
             write_all();
+            continue;
+
+format_error:
+            fprintf(stderr, RED"[PIPE] Format invalide ou incomplet : '%s'\n"RESET, buffer);
         }
+        sleep(5);
     }
+
     fclose(pipe);
 }
 
@@ -411,7 +431,19 @@ void command_loop() { // Cli
 }
 
 int main(int argc, char *argv[]) {
+    GtkBuilder *builder;
+    GtkWidget  *window;
+
+    gtk_init(&argc, &argv);
+
+    builder = gtk_builder_new_from_file("Glade.glade");
+    window = GTK_WIDGET(gtk_builder_get_object(builder, "main_window"));
+
+    gtk_builder_connect_signals(builder, NULL);
+    gtk_widget_show_all(window);
+    gtk_main();
     read_all();
+
     time_t now = time(NULL);
     struct tm *time_info = localtime(&now);
     int year = time_info->tm_year + 1900;
