@@ -451,7 +451,7 @@ int main(int argc, char *argv[]) {
         printf("The program is running in api mode (headless) no CLI available...");
         APIPE();
     } else if (argv[1]!=NULL && strcmp(argv[1],"-help")==0) {
-        printf("SmartPlan is a Calender powered by super algos and dreams ...\n");
+        printf("SmartPlan is a Calender powered by algos and dreams ...\n");
         printf("\t-api -------------- Headless, API\n");
         printf("\tnone -------------- CLI prompt\n");
     } else {

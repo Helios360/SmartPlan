@@ -16,31 +16,51 @@
         <property name="spacing">10</property>
         <property name="baseline-position">top</property>
         <child>
-          <object class="GtkButtonBox" id="main_menu">
+          <object class="GtkNotebook">
             <property name="visible">True</property>
-            <property name="can-focus">False</property>
-            <property name="orientation">vertical</property>
-            <property name="baseline-position">top</property>
+            <property name="can-focus">True</property>
+            <property name="tab-pos">left</property>
+            <property name="show-border">False</property>
             <child>
               <placeholder/>
+            </child>
+            <child type="tab">
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">page 1</property>
+              </object>
+              <packing>
+                <property name="tab-fill">False</property>
+              </packing>
             </child>
             <child>
               <placeholder/>
             </child>
-            <child>
-              <placeholder/>
+            <child type="tab">
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">page 2</property>
+              </object>
+              <packing>
+                <property name="position">1</property>
+                <property name="tab-fill">False</property>
+              </packing>
             </child>
             <child>
               <placeholder/>
             </child>
-            <child>
-              <placeholder/>
-            </child>
-            <child>
-              <placeholder/>
-            </child>
-            <child>
-              <placeholder/>
+            <child type="tab">
+              <object class="GtkLabel">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="label" translatable="yes">page 3</property>
+              </object>
+              <packing>
+                <property name="position">2</property>
+                <property name="tab-fill">False</property>
+              </packing>
             </child>
           </object>
           <packing>
@@ -54,6 +74,8 @@
             <property name="width-request">800</property>
             <property name="visible">True</property>
             <property name="can-focus">True</property>
+            <property name="hexpand">True</property>
+            <property name="vexpand">True</property>
             <property name="year">2025</property>
             <property name="month">5</property>
             <property name="day">9</property>
