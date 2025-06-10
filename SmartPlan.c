@@ -5,19 +5,11 @@
 #include <unistd.h>
 #include <time.h>
 #include <curl/curl.h>
-#include <gtk/gtk.h>
-//#include <cjson/cJSON.h>
-#define MAX_EVENT 1000
-
-typedef struct { // Event structure stored in Events.csv with
-    int prio, year, month, day, hours, minutes, seconds, duration;
-    unsigned long long id;
-    char peoples[300];
-    char desc[300];
-} event;
+#include "gui.h"
 
 event events[MAX_EVENT];
 int event_count = 0;
+
 // Color coding
 #define RED     "\x1b[31m"
 #define GREEN   "\x1b[32m"
@@ -144,7 +136,7 @@ void write_all() { // When the user is done using the prog, it writes all data f
     fclose(writing);
 }
 
-void delete_event_by_id(int id) {
+void delete_event_by_id(unsigned long long id) {
     int i;
     for (i = 0; i < event_count; i++) {
         if (events[i].id == id) {
@@ -153,22 +145,22 @@ void delete_event_by_id(int id) {
                 events[j] = events[j + 1];
             }
             event_count--; // Decrease the count
-            printf("Event with ID %d deleted.\n", id);
+            printf("Event with ID %llu deleted.\n", id);
             return;
         }
     }
-    printf("Event with ID %d not found.\n", id);
+    printf("Event with ID %llu not found.\n", id);
 }
 
-void update_event_by_id(int id, event updated_event) {
+void update_event_by_id(unsigned long long id, event updated_event) {
     for (int i = 0; i < event_count; i++) {
         if (events[i].id == id) {
             events[i] = updated_event; // Replace the old event with the new one
-            printf("Event with ID %d updated.\n", id);
+            printf("Event with ID %llu updated.\n", id);
             return;
         }
     }
-    printf("Event with ID %d not found.\n", id);
+    printf("Event with ID %llu not found.\n", id);
 }
 unsigned long long generate_event_id(int year, int month, int day, int hour, int minute, int second) {
     return (unsigned long long)year   * 10000000000ULL +
@@ -406,10 +398,10 @@ void command_loop() { // Cli
             } else { printf(RED"Usage: build <year> <?month> <?day>\n"RESET);}
             
         } else if (strncmp(input, "delete ", 7) == 0) {
-            int id = atoi(input + 7);
+            unsigned long long id = strtoull(input + 7, NULL, 10);
             delete_event_by_id(id);
         } else if (strncmp(input, "update ", 7) == 0) {
-            int id = atoi(input + 7);
+            unsigned long long id = strtoull(input + 7, NULL, 10);
             event updated_event = prompt_user_for_event_data();
             update_event_by_id(id, updated_event);
         } else if (strcmp(input, "create") == 0) {
@@ -431,17 +423,6 @@ void command_loop() { // Cli
 }
 
 int main(int argc, char *argv[]) {
-    GtkBuilder *builder;
-    GtkWidget  *window;
-
-    gtk_init(&argc, &argv);
-
-    builder = gtk_builder_new_from_file("Glade.glade");
-    window = GTK_WIDGET(gtk_builder_get_object(builder, "main_window"));
-
-    gtk_builder_connect_signals(builder, NULL);
-    gtk_widget_show_all(window);
-    gtk_main();
     read_all();
 
     time_t now = time(NULL);
@@ -450,13 +431,16 @@ int main(int argc, char *argv[]) {
     if (argv[1]!=NULL && strcmp(argv[1],"-api")==0){
         printf("The program is running in api mode (headless) no CLI available...");
         APIPE();
+    } else if (argv[1]!=NULL && strcmp(argv[1],"-cli")==0) {
+        command_loop();
+        build_year(year);
     } else if (argv[1]!=NULL && strcmp(argv[1],"-help")==0) {
         printf("SmartPlan is a Calender powered by algos and dreams ...\n");
         printf("\t-api -------------- Headless, API\n");
+        printf("\t-cli -------------- No gui, Cli tool\n");
         printf("\tnone -------------- CLI prompt\n");
     } else {
-        build_year(year);
-        command_loop();
+        gui(argc,argv);
     }
     return 0;
 }

@@ -1,9 +1,10 @@
 #!/bin/bash
+touch Events.csv
 
-gcc `pkg-config gtk+-3.0 --cflags` SmartPlan.c -o SmartPlan `pkg-config gtk+-3.0 --libs`
+echo "prio,id,year,month,day,hours,minutes,seconds,duration,peoples,desc\n" > Events.csv
+
+gcc SmartPlan.c gui.c -o smartplan `pkg-config --cflags --libs gtk+-3.0` -rdynamic
 
 mv Smartplan /usr/local/bin/
 
-nohup ollama serve > ollama.log 2>&1 &
-
-echo "Setup is done, you can type Smartplan -help to begin"
+echo "Setup is done, you can type smartplan -help to begin"

@@ -1,49 +1,57 @@
-void fill_calendar_grid(GtkGrid *grid, int year, int month) {
-    // Clean previous grid content (but keep header row)
-    GList *children = gtk_container_get_children(GTK_CONTAINER(grid));
-    for (GList *iter = children; iter != NULL; iter = g_list_next(iter)) {
-        GtkWidget *child = GTK_WIDGET(iter->data);
-        int top;
-        gtk_container_child_get(GTK_CONTAINER(grid), child, "top-attach", &top, NULL);
-        if (top > 0) gtk_widget_destroy(child); // Keep day headers
-    }
+#include <gtk/gtk.h>
+#include "gui.h"
+
+GtkBuilder *builder;
+
+void gui(int argc, char *argv[]){
+    
+    GtkWidget  *window;
+
+    gtk_init(&argc, &argv);
+
+    builder = gtk_builder_new_from_file("Glade.glade");
+    window = GTK_WIDGET(gtk_builder_get_object(builder, "main_window"));
+
+    gtk_builder_connect_signals(builder, NULL);
+    gtk_widget_show_all(window);
+    gtk_main();
+}
+
+void on_calendar_day_selected(GtkCalendar *calendar, gpointer user_data) {
+    guint year, month, day;
+    gtk_calendar_get_date(calendar, &year, &month, &day); // month is 0-based
+    month++;
+
+    GtkWidget *event_box = GTK_WIDGET(gtk_builder_get_object(builder, "event_box"));
+
+    // Clear previous children
+    GList *children = gtk_container_get_children(GTK_CONTAINER(event_box));
+    for (GList *iter = children; iter != NULL; iter = g_list_next(iter))
+        gtk_widget_destroy(GTK_WIDGET(iter->data));
     g_list_free(children);
 
-    // Calculate starting weekday (0 = Monday)
-    struct tm date = {0};
-    date.tm_year = year - 1900;
-    date.tm_mon = month - 1;
-    date.tm_mday = 1;
-    mktime(&date);
-    int start_day = (date.tm_wday == 0) ? 6 : date.tm_wday - 1;
+    // Display matching events
+    int found = 0;
+    for (int i = 0; i < event_count; i++) {
+        if (events[i].year == year && events[i].month == month && events[i].day == day) {
+            char buf[512];
+            snprintf(buf, sizeof(buf), "-- [%02d:%02d] %s for %d minutes(Prio %d)",
+                     events[i].hours, events[i].minutes,
+                     events[i].desc, events[i].duration, events[i].prio);
 
-    int days_in_month = get_days_in_month(month, year);
-    int day = 1;
-
-    for (int row = 1; row <= 6 && day <= days_in_month; row++) {
-        for (int col = 0; col < 7 && day <= days_in_month; col++) {
-            if (row == 1 && col < start_day) continue;
-
-            char label_text[4];
-            snprintf(label_text, sizeof(label_text), "%d", day);
-
-            GtkWidget *label = gtk_label_new(label_text);
-            gtk_widget_set_hexpand(label, TRUE);
-            gtk_widget_set_vexpand(label, TRUE);
-            gtk_widget_set_halign(label, GTK_ALIGN_FILL);
-            gtk_widget_set_valign(label, GTK_ALIGN_FILL);
-
-            if (has_event_on_day(year, month, day)) {
-                // Set red color using markup
-                char markup[64];
-                snprintf(markup, sizeof(markup), "<span foreground='red'><b>%d</b></span>", day);
-                gtk_label_set_markup(GTK_LABEL(label), markup);
-            }
-
-            gtk_grid_attach(grid, label, col, row, 1, 1);
-            day++;
+            GtkWidget *label = gtk_label_new(buf);
+            gtk_widget_set_halign(label, GTK_ALIGN_START);
+            gtk_box_pack_start(GTK_BOX(event_box), label, FALSE, FALSE, 5);
+            found = 1;
         }
     }
+    //printf("[DEBUG] Calendar date selected: %04d-%02d-%02d\n", year, month, day);
 
-    gtk_widget_show_all(GTK_WIDGET(grid));
+    if (!found) {
+        GtkWidget *label = gtk_label_new("No events found.");
+        gtk_widget_set_halign(label, GTK_ALIGN_START);
+        gtk_box_pack_start(GTK_BOX(event_box), label, FALSE, FALSE, 5);
+    }
+
+    gtk_widget_show_all(event_box);
 }

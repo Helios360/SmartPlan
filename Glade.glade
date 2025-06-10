@@ -5,26 +5,145 @@
   <object class="GtkWindow" id="main_window">
     <property name="can-focus">False</property>
     <child>
-      <object class="GtkBox">
+      <object class="GtkNotebook">
         <property name="visible">True</property>
-        <property name="can-focus">False</property>
+        <property name="can-focus">True</property>
         <property name="margin-start">10</property>
         <property name="margin-end">10</property>
         <property name="margin-top">10</property>
         <property name="margin-bottom">10</property>
-        <property name="spacing">10</property>
         <child>
-          <object class="GtkButtonBox">
+          <object class="GtkBox">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
             <property name="orientation">vertical</property>
-            <property name="layout-style">start</property>
+            <property name="spacing">20</property>
+            <property name="homogeneous">True</property>
             <child>
-              <object class="GtkButton">
-                <property name="label" translatable="yes">+</property>
+              <object class="GtkCalendar" id="calendar">
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="receives-default">True</property>
+                <property name="valign">start</property>
+                <property name="year">2025</property>
+                <property name="month">5</property>
+                <property name="day">9</property>
+                <signal name="day-selected" handler="on_calendar_day_selected" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkScrolledWindow">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="hscrollbar-policy">never</property>
+                <property name="vscrollbar-policy">always</property>
+                <property name="shadow-type">in</property>
+                <child>
+                  <object class="GtkViewport">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <child>
+                      <object class="GtkBox" id="event_box">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">10</property>
+                        <property name="homogeneous">True</property>
+                        <child>
+                          <object class="GtkButton">
+                            <property name="label" translatable="yes">Create</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">True</property>
+                            <property name="margin-start">10</property>
+                            <property name="margin-end">10</property>
+                            <property name="margin-top">10</property>
+                            <property name="margin-bottom">10</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">False</property>
+                            <property name="position">-1</property>
+                          </packing>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+          </object>
+        </child>
+        <child type="tab">
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Calendar</property>
+          </object>
+          <packing>
+            <property name="tab-fill">False</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkScrolledWindow">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="shadow-type">in</property>
+            <child>
+              <object class="GtkViewport">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <child>
+                  <object class="GtkBox" id="events_container">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">10</property>
+                    <property name="baseline-position">top</property>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+          <packing>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child type="tab">
+          <object class="GtkLabel" id="event">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Events</property>
+          </object>
+          <packing>
+            <property name="position">1</property>
+            <property name="tab-fill">False</property>
+            <property name="reorderable">True</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkTextView" id="logs">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="editable">False</property>
+                <property name="cursor-visible">False</property>
               </object>
               <packing>
                 <property name="expand">True</property>
@@ -32,69 +151,77 @@
                 <property name="position">0</property>
               </packing>
             </child>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkNotebook">
-            <property name="visible">True</property>
-            <property name="can-focus">True</property>
             <child>
-              <object class="GtkCalendar">
+              <object class="GtkBox" id="import_css">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="margin-start">10</property>
+                <property name="margin-end">10</property>
+                <property name="spacing">10</property>
+                <property name="homogeneous">True</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Import a calendar : </property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkFileChooserButton" id="calendar_import">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="title" translatable="yes"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="padding">10</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLinkButton" id="blog_redirect">
+                <property name="label" translatable="yes">Hellios</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
-                <property name="year">2025</property>
-                <property name="month">5</property>
-                <property name="day">9</property>
-              </object>
-            </child>
-            <child type="tab">
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Calendar</property>
+                <property name="focus-on-click">False</property>
+                <property name="receives-default">True</property>
+                <property name="relief">none</property>
+                <property name="uri">https://hellios.blog</property>
               </object>
               <packing>
-                <property name="tab-fill">False</property>
-              </packing>
-            </child>
-            <child>
-              <placeholder/>
-            </child>
-            <child type="tab">
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Events</property>
-              </object>
-              <packing>
-                <property name="position">1</property>
-                <property name="tab-fill">False</property>
-              </packing>
-            </child>
-            <child>
-              <placeholder/>
-            </child>
-            <child type="tab">
-              <object class="GtkLabel">
-                <property name="visible">True</property>
-                <property name="can-focus">False</property>
-                <property name="label" translatable="yes">Commands</property>
-              </object>
-              <packing>
-                <property name="position">2</property>
-                <property name="tab-fill">False</property>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="pack-type">end</property>
+                <property name="position">3</property>
               </packing>
             </child>
           </object>
           <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">1</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
+        <child type="tab">
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Settings</property>
+          </object>
+          <packing>
+            <property name="position">2</property>
+            <property name="tab-fill">False</property>
           </packing>
         </child>
       </object>
