@@ -28,7 +28,7 @@ void build_day_events(int year, int month, int day){
                        events[i].id,
                        events[i].year, events[i].month, events[i].day,
                        events[i].hours, events[i].minutes, events[i].seconds,
-                       events[i].prio, events[i].duration, events[i].peoples, events[i].desc);
+                       events[i].prio, events[i].duration, events[i].desc);
         }
     }
 }
@@ -108,8 +108,6 @@ void read_all() { // Gets all events from the csv file to use them in the progra
         if (token != NULL) e.seconds = atoi(token);
         token = strtok(NULL, ",");
         if (token != NULL) e.duration = atoi(token);
-        token = strtok(NULL, ",");
-        if (token != NULL) strcpy(e.peoples, token);
         token = strtok(NULL, "\n");
         if (token != NULL) strcpy(e.desc, token);
         
@@ -124,14 +122,14 @@ void write_all() { // When the user is done using the prog, it writes all data f
         printf("Failed to open events.csv for writing\n");
     }
     // Write header
-    fprintf(writing, "prio,id,year,month,day,hours,minutes,seconds,duration,peoples,desc\n");
+    fprintf(writing, "prio,id,year,month,day,hours,minutes,seconds,duration,desc\n");
     // Write each event
     for (int i = 0; i < event_count; i++) {
         fprintf(writing, "%d,%llu,%d,%d,%d,%d,%d,%d,%d,%s,%s\n",
             events[i].prio, events[i].id,
             events[i].year, events[i].month, events[i].day,
             events[i].hours, events[i].minutes, events[i].seconds,
-            events[i].duration, events[i].peoples, events[i].desc);
+            events[i].duration, events[i].desc);
     }
     fclose(writing);
 }
@@ -172,7 +170,7 @@ unsigned long long generate_event_id(int year, int month, int day, int hour, int
 }
 
 void create_event(event *e, int prio, int year, int month, int day,
-    int hour, int minute, int second, int duration, const char *peoples, const char *desc) {
+    int hour, int minute, int second, int duration, const char *desc) {
 
     e->prio = prio;
     e->id = generate_event_id(year, month, day, hour, minute, second);
@@ -184,8 +182,6 @@ void create_event(event *e, int prio, int year, int month, int day,
     e->seconds = second;
     e->duration = duration;
 
-    strncpy(e->peoples, peoples, sizeof(e->peoples) - 1);
-    e->peoples[sizeof(e->peoples) - 1] = '\0';
     strncpy(e->desc, desc, sizeof(e->desc) - 1);
     e->desc[sizeof(e->desc) - 1] = '\0';  // Ensure null termination
 }
@@ -241,7 +237,6 @@ void APIPE() {
             strncpy(command, token, sizeof(command));
 
             int prio, year, month, day, hour, minute, second, duration;
-            char peoples[300] = {0};
             char desc[300] = {0};
 
             token = strtok(NULL, " "); if (!token) goto format_error;
@@ -268,16 +263,13 @@ void APIPE() {
             token = strtok(NULL, " "); if (!token) goto format_error;
             duration = atoi(token);
 
-            token = strtok(NULL, "|"); if (!token) goto format_error;
-            strncpy(peoples, token, sizeof(peoples));
-
             token = strtok(NULL, "\n"); if (!token) goto format_error;
             strncpy(desc, token, sizeof(desc));
 
             if (strcmp(command, "create") == 0) {
                 printf("Create command found\n");
                 event e;
-                create_event(&e, prio, year, month, day, hour, minute, second, duration, peoples, desc);
+                create_event(&e, prio, year, month, day, hour, minute, second, duration, desc);
                 events[event_count++] = e;
                 printf("[PIPE] Created event ID %d: %s\n", e.id, e.desc);
             } else if (strcmp(command, "delete") == 0) {
@@ -286,7 +278,7 @@ void APIPE() {
             } else if (strcmp(command, "update") == 0) {
                 int cmd_id = prio; // reuse prio field for ID
                 event updated;
-                create_event(&updated, prio, year, month, day, hour, minute, second, duration, peoples, desc);
+                create_event(&updated, prio, year, month, day, hour, minute, second, duration, desc);
                 update_event_by_id(cmd_id, updated);
                 printf("[PIPE] Updated event ID %d\n", cmd_id);
             }
@@ -294,7 +286,7 @@ void APIPE() {
             write_all();
             continue;
 
-format_error:
+            format_error:
             fprintf(stderr, RED"[PIPE] Format invalide ou incomplet : '%s'\n"RESET, buffer);
         }
         sleep(5);
@@ -305,7 +297,6 @@ format_error:
 
 event prompt_user_for_event_data() {
     event e;
-    char peoples[300];
     char desc[300];
     char day_info;
     int hour = 0, minute = 0, second = 0, duration = 0;
@@ -345,15 +336,12 @@ event prompt_user_for_event_data() {
     e.duration = duration;
 
     getchar(); // clear
-    printf("People involved (separate with semicolons): ");
-    fgets(peoples, sizeof(peoples), stdin);
-    peoples[strcspn(peoples, "\n")] = 0;
 
     printf("Description: ");
     fgets(desc, sizeof(desc), stdin);
     desc[strcspn(desc, "\n")] = 0;
     create_event(&e, e.prio, e.year, e.month, e.day,
-                 e.hours, e.minutes, e.seconds, duration, peoples, desc);
+                 e.hours, e.minutes, e.seconds, duration, desc);
     return e;
 }
 
@@ -382,7 +370,7 @@ void command_loop() { // Cli
                        events[i].id,
                        events[i].year, events[i].month, events[i].day,
                        events[i].hours, events[i].minutes, events[i].seconds,
-                       events[i].duration, events[i].prio, events[i].peoples, events[i].desc);
+                       events[i].duration, events[i].prio, events[i].desc);
                 printf("-------------------------------------------------------\n");
             }
         } else if (strncmp(input, "build ", 6) == 0) {
@@ -442,5 +430,6 @@ int main(int argc, char *argv[]) {
     } else {
         gui(argc,argv);
     }
+    write_all();
     return 0;
 }
