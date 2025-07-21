@@ -1,5 +1,0 @@
-.rounded-btn {
-    border-radius: 12px; /* or whatever value you want */
-    background-color: #4CAF50; /* optional */
-    color: white; /* optional */
-}
